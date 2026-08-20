@@ -163,7 +163,6 @@ oqUOJesJFPE+V0agCQ5COhKrUkTqjJ71izDUGJokeCIL4zSV1y7ZJI1PKcP+BH5o
 NM6BVGhApPFQeDrI/QIDAQAB
 -----END PUBLIC KEY-----"""
 
-# Cache sẵn RSA key để tối ưu CPU
 _rsa_key = RSA.import_key(PUB_KEY)
 
 def make_sec_headers(domain: str, ua: str) -> Dict[str, str]:
@@ -300,15 +299,20 @@ class ProxyProvider:
     def get_new_proxy(self):
         headers = {"user-api-key": NEST_API_KEY}
         try:
+            log_safe("[*] Đang gửi yêu cầu đổi Proxy mới tới NestProxy...", Col.CYAN)
             requests.post("https://nestproxy.com/api/client/proxy/remove", params={"proxy_key": NEST_PROXY_KEY}, headers=headers, timeout=10)
             time.sleep(1)
             r = requests.get("https://nestproxy.com/api/client/proxy/available", params={"proxy_key": NEST_PROXY_KEY}, headers=headers, timeout=10)
             data = r.json()
             proxy = data.get("proxy")
             if proxy:
-                return proxy if proxy.startswith("http") else "http://" + proxy
-        except:
-            pass
+                p_url = proxy if proxy.startswith("http") else "http://" + proxy
+                log_safe(f"🚀 ĐÃ LẤY PROXY MỚI THÀNH CÔNG: {p_url}", Col.GREEN)
+                return p_url
+            else:
+                log_safe(f"⚠️ NestProxy trả về dữ liệu trống: {data}", Col.YELLOW)
+        except Exception as e:
+            log_safe(f"❌ Lỗi gọi API NestProxy: {str(e)}", Col.RED)
         return None
 
     def get_proxy(self):
