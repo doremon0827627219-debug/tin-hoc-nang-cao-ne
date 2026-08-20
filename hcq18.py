@@ -35,8 +35,9 @@ except ImportError:
 
 # ============ CONFIG (Tối ưu cho Railway Free) ============
 DOMAINS = [
-    "m.nohu90.com", "m.ok36533.vip", "m.00dn88.com", "m.f8bbet.com",
-    "m.pg99ok.vip", "m.0mmoo.com", "m.hi88xx.com", "m.shbetv3. "m.1xx88.com", "m.fly88h.com", "m.sc88.com",
+    "m.nohu90.com", "m.ok36533.vip", "m.0qs88.com", "m.00dn88.com", "m.f8bbet.com",
+    "m.pg99ok.vip", "m.0mmoo.com", "m.hi88xx.com", "m.shbetv3.com",
+    "m.qq4422.com", "m.mm6799.com", "m.rr8891.com", "m.1xx88.com", "m.fly88h.com", "m.sc88.com",
     "m.c168.com", "m.f168m.com", "m.5uy88.com", "m.98tt88.com", "m.78978966.com", "m.97777999.com",
     "m.new88pc.com", "m.mb66a3.com", "m.79king1.com", "m.j866.ink", "m.u8886.cyou", "m.88ck.xyz",
     "m.abc11.ink", "m.8k4028q.top", "m.win55mm.com", "m.CN3789.NET", "m.007win.bet", "m.16vvvwin.com",
@@ -44,7 +45,7 @@ DOMAINS = [
     "m.5ivug.fun", "m.69vn5.com", "m.789bettg.net", "m.789win0052.com", "m.796621.com", "m.799568.win",
     "m.79k09.club", "m.82king88.com", "m.88ok7.net", "m.88vv.my", "m.89bet3000.com", "m.8k0341q.top",
     "m.98wn65.com", "m.cwin05.com", "m.dpyg3.xyz", "m.f8betv9.net", "m.good8815.cc", "m.hi2999.com",
-    "m.hkt699e.vip", "m.hubet59.com", "m.i9bet41.com", "m.kl991.com", "m.kuwn42.com", 
+    "m.hkt699e.vip", "m.hubet59.com", "m.i9bet41.com", "m.kl991.com", "m.kuwn42.com", "m.mb6614.run",
     "m.new886.ec", "m.new888e.vip", "m.ok559.cc", "m.okking72.com", "m.okvnd.my", "m.pg66.com",
     "m.shbetaa1.kim", "m.tt88.com", "m.win55mmm.com", "m.xin88.xin"
 ]
@@ -53,7 +54,7 @@ NEST_API_KEY = "d679d633-a951-48c0-95cf-ce1922942088"
 NEST_PROXY_KEY = "UK-dd550476-9fad-4394-9de3-1a1e423d18cc"
 
 # Giảm số luồng xuống 8 để an toàn tuyệt đối cho RAM 512MB của Railway
-NUM_THREADS = 8 
+NUM_THREADS = 8  
 PROGRESS_EVERY = 50
 
 # ============ TELEGRAM ============
