@@ -52,8 +52,8 @@ DOMAINS = [
 
 NEST_API_KEY = "d679d633-a951-48c0-95cf-ce1922942088"
 NEST_PROXY_KEY = "UK-dd550476-9fad-4394-9de3-1a1e423d18cc"
-NUM_THREADS = 10  
-PROGRESS_EVERY = 10
+NUM_THREADS = 1  
+PROGRESS_EVERY = 1
 
 # ============ TELEGRAM ============
 DEFAULT_TG_TOKEN = '8974102288:AAE3h0xrHuXQPIrddcRTQaqq4Jg9_pVGmQ0'
@@ -420,7 +420,7 @@ def check_one_account(idx, total, acc, domain, proxy_url):
         log_safe(f"[TIẾN ĐỘ] Hoàn thành: {done}/{total} | Thành công: {ok} | Lỗi: {skip}", Col.CYAN)
 
 def main():
-    log_safe(f"🚀 KHỞI ĐỘNG HỆ THỐNG QUÉT TÀI KHOẢN (100 THREADS)", Col.GOLD)
+    log_safe(f"🚀 KHỞI ĐỘNG HỆ THỐNG QUÉT TÀI KHOẢN (1 THREADS)", Col.GOLD)
     
     accounts = load_accounts()
     log_safe(f"[*] Đã tải thành công {len(accounts)} tài khoản từ file 100.txt.", Col.CYAN)
