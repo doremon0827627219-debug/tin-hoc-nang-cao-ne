@@ -420,7 +420,7 @@ def check_one_account(idx, total, acc, domain, proxy_url):
         log_safe(f"[TIẾN ĐỘ] Hoàn thành: {done}/{total} | Thành công: {ok} | Lỗi: {skip}", Col.CYAN)
 
 def main():
-    log_safe(f"🚀 KHỞI ĐỘNG HỆ THỐNG QUÉT TÀI KHOẢN (400 THREADS)", Col.GOLD)
+    log_safe(f"🚀 KHỞI ĐỘNG HỆ THỐNG QUÉT TÀI KHOẢN (100 THREADS)", Col.GOLD)
     
     accounts = load_accounts()
     log_safe(f"[*] Đã tải thành công {len(accounts)} tài khoản từ file 100.txt.", Col.CYAN)
