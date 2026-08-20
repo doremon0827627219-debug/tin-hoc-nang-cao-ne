@@ -54,7 +54,7 @@ NEST_API_KEY = "d679d633-a951-48c0-95cf-ce1922942088"
 NEST_PROXY_KEY = "UK-dd550476-9fad-4394-9de3-1a1e423d18cc"
 
 # Giảm số luồng xuống 8 để an toàn tuyệt đối cho RAM 512MB của Railway
-NUM_THREADS = 8  
+NUM_THREADS = 50 
 PROGRESS_EVERY = 50
 
 # ============ TELEGRAM ============
