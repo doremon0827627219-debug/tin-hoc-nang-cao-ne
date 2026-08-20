@@ -296,8 +296,8 @@ class SiteAPI:
 
 class ProxyProvider:
     def __init__(self, rotate_interval=60):
-        self.api_key = "df74574b8d6bff687ed1ca392b19f653"[cite: 1]
-        self.raw_proxy = "202.55.133.231:36817:ngww1:9e8mc"[cite: 1]
+        self.api_key = "df74574b8d6bff687ed1ca392b19f653"
+        self.raw_proxy = "202.55.133.231:36817:ngww1:9e8mc"
         self.proxy = self._format_proxy(self.raw_proxy)
         self.lock = threading.Lock()
         self.rotate_interval = rotate_interval
